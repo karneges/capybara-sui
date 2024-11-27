@@ -4,7 +4,7 @@ name = "capybara"
 edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 # license = ""           # e.g., "MIT", "GPL", "Apache 2.0"
 # authors = ["..."]      # e.g., ["Joe Smith (joesmith@noemail.com)", "John Snow (johnsnow@noemail.com)"]
-published-at = "0xa0dd4d5200fea970a73ce16aa9ca5c52d6b8252d590f5d6c0eca98d52f86f7b7"
+#published-at = "0xa0dd4d5200fea970a73ce16aa9ca5c52d6b8252d590f5d6c0eca98d52f86f7b7"
 
 
 [dependencies]

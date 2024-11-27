@@ -1,7 +1,6 @@
 /// Module: capybara
 module capybara::capybara_game_card {
-    use std::option;
-    use std::option::Option;
+    use std::option::{Option};
     use std::string::{utf8, String};
     use std::vector;
     use sui::event::{Self};
@@ -20,6 +19,9 @@ module capybara::capybara_game_card {
     use sui::tx_context;
     use sui::tx_context::TxContext;
     use sui::address;
+    use sui::clock::Clock;
+    use sui::display::{Display};
+    use sui::package::Publisher;
     use sui::random::Random;
     #[test_only]
     use capybara::capybara_game_card::init;
@@ -44,27 +46,28 @@ module capybara::capybara_game_card {
     public struct Registry has key {
         id: UID,
         version: u64,
-        leagues: vector<String>,
+        leagues: vector<u64>,
         pk: vector<u8>,
         items: Table<address, RegistryItem>,
+        check_signature: bool,
     }
 
     public struct RegistryItem has store, drop {
         id: ID,
-        nonce: u64,
     }
 
     public struct NFTData has key {
         id: UID,
         owner: address,
-        league: String,
+        league: u64,
         points: u64,
     }
 
     public struct CheckinArgTBS has drop {
-        nonce: u64,
+        valid_until: u64,
         points: Option<u64>,
-        league: Option<String>,
+        league: Option<u64>,
+        user: String,
     }
 
     public struct CapybaraNft has key {
@@ -84,13 +87,21 @@ module capybara::capybara_game_card {
     public struct MintNFT has copy, drop {
         from: address,
         to: address,
+        points: u64,
+        league: u64,
         nft_id: ID,
     }
 
     public struct DailyCheckin has copy, drop {
         nft_id: ID,
         new_points: Option<u64>,
-        new_league: Option<String>,
+        new_league: Option<u64>,
+        fee: u64,
+    }
+
+    public struct UserEvt has copy, drop {
+        user: String,
+        signature: vector<u8>,
     }
 
     public struct SpentPoints has copy, drop {
@@ -111,7 +122,7 @@ module capybara::capybara_game_card {
     }
 
     public struct UpdateLeagues has copy, drop {
-        leagues: vector<String>,
+        leagues: vector<u64>,
     }
 
     public struct WithdrawAmount has copy, drop {
@@ -134,45 +145,46 @@ module capybara::capybara_game_card {
             id: object::new(ctx),
             version: VERSION,
             balance: balance::zero<SUI>(),
-            checkin_fee: 300_000_000,
+            checkin_fee: 0,
         };
-        let leagues: vector<String> = vector[
-            b"Starving".to_string(),
-            b"Famished".to_string(),
-            b"Hungry".to_string(),
-            b"Full".to_string(),
-            b"Nourished".to_string(),
+        let leagues: vector<u64> = vector[
+            0,
+            1,
+            2,
+            3,
+            4,
         ];
         let registry = Registry {
             id: object::new(ctx),
             version: VERSION,
             leagues,
-            pk: x"035229dff81f3e3f5a1526b92908752395d96bf6b41cc253b2ad5bebe503149cf2",
+            pk: x"031d9cd3748b019a247773cae4c6e34abba70ba9fd25f86fff1595b012337d3150",
             items: table::new(ctx),
+            check_signature: true,
         };
 
         let keys = vector[
             utf8(b"name"),
             utf8(b"description"),
+            utf8(b"coins earned"),
             utf8(b"league"),
-            utf8(b"points"),
             utf8(b"image_url"),
             utf8(b"thumbnail_url"),
         ];
         let values = vector[
-            utf8(b"Player card"),
-            utf8(b"With {league} level and {points} points"),
-            utf8(b"{league}"),
+            utf8(b"Capybara player card"),
+            utf8(b"The Player Card NFT stores your progress in the Capybara mini-game as dynamic NFT attributes. Update your attributes daily to showcase your achievements and unlock even more rewards! Track, grow, and reap the benefits—your journey starts here!"),
             utf8(b"{points}"),
-            utf8(b"https://capybara_static.8gen.team/{league}.png"),
-            utf8(b"https://capybara_static.8gen.team/{league}_preview.png"),
+            utf8(b"{league}"),
+            utf8(b"https://api.capybara.vip/api/nft/card/{league}.png"),
+            utf8(b"https://api.capybara.vip/api/nft/card/{league}_preview.png"),
         ];
         let publisher = package::claim(otw, ctx);
         let mut display = display::new_with_fields<NFTData>(
             &publisher, keys, values, ctx
         );
         display::update_version(&mut display);
-        let owner_addr_as_u8: vector<u8> = address::to_bytes(@0x3a1a0722453ff6da8a9695ef9588bd0ef57e60df8eee12f45cb792a170f179e1);
+        let owner_addr_as_u8: vector<u8> = address::to_bytes(@0x0f322f525e7370de05cf773b522c4611b483c94533b61f2da4cb9d4f81d3ff2d);
         let owner_address = address::from_bytes(owner_addr_as_u8);
         transfer::public_transfer(admin_cap, owner_address);
         transfer::public_transfer(publisher, owner_address);
@@ -183,7 +195,7 @@ module capybara::capybara_game_card {
 
     fun new_nft(
         recipient: address,
-        league: String,
+        league: u64,
         points: u64,
         ctx: &mut TxContext
     ): NFTData {
@@ -195,39 +207,105 @@ module capybara::capybara_game_card {
         }
     }
 
+    public entry fun transfer_ownerchip(
+        pub: Publisher,
+        admin_cap: AdminCap,
+        display: Display<NFTData>,
+        new_owner: address,
+        ctx: &mut TxContext
+    ) {
+        transfer::public_transfer(pub, new_owner);
+        transfer::public_transfer(display, new_owner);
+        transfer::public_transfer(admin_cap, new_owner);
+    }
+
+    public entry fun update_nft_data_display(
+        display: &mut Display<NFTData>,
+        fields: vector<String>,
+        values: vector<String>,
+        ctx: &mut TxContext
+    ) {
+        display::add_multiple(display, fields, values);
+        display::update_version(display);
+    }
+
     public entry fun mint(
         registry: &mut Registry,
-        recipient: address,
+        clock: &Clock,
+        valid_until: u64,
+        points: Option<u64>,
+        league: Option<u64>,
+        signature: vector<u8>,
         ctx: &mut TxContext,
     ) {
-        assert!(VERSION == 1, EWrongVersion);
+        assert!(VERSION == registry.version, EWrongVersion);
         let sender: address = tx_context::sender(ctx);
-        assert!(!table::contains<address, RegistryItem>(&registry.items, recipient), EAlreadyHasNFT);
 
-        let nft: NFTData = capybara::capybara_game_card::new_nft(
-            recipient,
-            utf8(b"Starving"),
-            0,
-            ctx,
-        );
+        assert!(!table::contains<address, RegistryItem>(&registry.items, sender), EAlreadyHasNFT);
+
+        capybara::capybara_game_card::enforce_signature(registry, clock, valid_until, points, league, sender, signature);
+
+        let league = if (league.is_some()) {
+            *league.borrow()
+        } else {
+            0
+        };
+        let points = if (points.is_some()) {
+            *points.borrow()
+        } else {
+            0
+        };
+        let nft: NFTData = {
+            capybara::capybara_game_card::new_nft(
+                sender,
+                league,
+                points,
+                ctx,
+            )
+        };
+
 
         let nft_id: ID = object::id(&nft);
 
         let item = RegistryItem {
             id: nft_id,
-            nonce: 0,
         };
-        table::add(&mut registry.items, recipient, item);
+        table::add(&mut registry.items, sender, item);
 
-        event::emit(MintNFT{ from: sender, to: recipient, nft_id: nft_id });
-        transfer::transfer(nft, recipient);
+        event::emit(MintNFT{
+            from: sender,
+            to: sender,
+            nft_id,
+            league,
+            points,
+        });
+        transfer::transfer(nft, sender);
     }
 
-    public fun serialize_checkin_args(nonce: u64, points: Option<u64>, league: Option<String>): vector<u8> {
+    fun enforce_signature(
+        registry: &mut Registry,
+        clock: &Clock,
+        valid_until: u64,
+        points: Option<u64>,
+        league: Option<u64>,
+        sender: address,
+        signature: vector<u8>,
+    ) {
+        if (registry.check_signature) {
+            let curr_timestamp = clock.timestamp_ms();
+            assert!(valid_until >= curr_timestamp / 1000u64, EOutdatedNonce);
+
+            let msg = capybara::capybara_game_card::serialize_checkin_args(valid_until, points, league, sender);
+            let verify = ecdsa_k1::secp256k1_verify(&signature, &registry.pk, &msg, 1);
+            assert!(verify, EInvalidSignature);
+        };
+    }
+    public fun serialize_checkin_args(valid_until: u64, points: Option<u64>, league: Option<u64>, user: address): vector<u8> {
         let arg = CheckinArgTBS {
-            nonce,
+            valid_until,
             points,
             league,
+            user: address::to_string(user),
         };
         std::bcs::to_bytes(&arg)
     }
@@ -236,14 +314,17 @@ module capybara::capybara_game_card {
         nft: &mut NFTData,
         treasury: &mut Treasury,
         registry: &mut Registry,
+        clock: &Clock,
         fee: &mut Coin<SUI>,
-        nonce: u64,
+        valid_until: u64,
         points: Option<u64>,
-        league: Option<String>,
+        league: Option<u64>,
         signature: vector<u8>,
         ctx: &mut TxContext
     ) {
-        assert!(VERSION == 1, EWrongVersion);
+        assert!(VERSION == registry.version, EWrongVersion);
+        assert!(VERSION == treasury.version, EWrongVersion);
+
         let NFTData { id, owner: _, league: _, points: _} = nft;
         let nft_id: ID = object::uid_to_inner(id);
         let sender: address = tx_context::sender(ctx);
@@ -252,13 +333,8 @@ module capybara::capybara_game_card {
         let fee_coin: Coin<SUI> = coin::split(fee, treasury.checkin_fee, ctx);
         coin::put(&mut treasury.balance, fee_coin);
 
-        let msg = capybara::capybara_game_card::serialize_checkin_args(nonce, points, league);
-        let verify = ecdsa_k1::secp256k1_verify(&signature, &registry.pk, &msg, 1);
-        assert!(verify, EInvalidSignature);
-        let item: &mut RegistryItem = table::borrow_mut(&mut registry.items, sender);
-        assert!(item.nonce == nonce, EOutdatedNonce);
-        item.nonce = item.nonce + 1;
 
+        capybara::capybara_game_card::enforce_signature(registry, clock, valid_until, points, league, sender, signature);
 
         if(points.is_some()) {
             nft.points = *points.borrow();
@@ -271,33 +347,33 @@ module capybara::capybara_game_card {
         };
 
 
-        event::emit(DailyCheckin { nft_id, new_points: points, new_league: league });
+        event::emit(DailyCheckin { nft_id, new_points: points, new_league: league, fee: treasury.checkin_fee });
 
 
     }
 
-    public entry fun spend<T>(
-        registry: &mut Registry,
-        nft: &mut NFTData,
-        amount: u64,
-    ) {
-        assert!(capybara::capybara_game_card::is_treasurer<T>(registry), EInvalidSender);
-        let NFTData { id, owner, league: _, points: _} = nft;
-        let nft_id: ID = object::uid_to_inner(id);
-        assert!(table::contains<address, RegistryItem>(&registry.items, *owner), EInvalidSender);
-
-        let item: &mut RegistryItem = table::borrow_mut(&mut registry.items, *owner);
-        item.nonce = item.nonce + 1;
-        assert!(nft.points >= amount, ENotEnough);
-        nft.points = nft.points - amount;
-        event::emit(SpentPoints { nft_id, amount });
-    }
+    // public fun spend<T: drop>(
+    //     registry: &mut Registry,
+    //     nft: &mut NFTData,
+    //     amount: u64,
+    // ) {
+    //     assert!(VERSION == registry.version, EWrongVersion);
+    //     assert!(capybara::capybara_game_card::is_treasurer<T>(registry), EInvalidSender);
+    //
+    //     let NFTData { id, owner, league: _, points: _} = nft;
+    //     let nft_id: ID = object::uid_to_inner(id);
+    //     assert!(table::contains<address, RegistryItem>(&registry.items, *owner), EInvalidSender);
+    //
+    //     assert!(nft.points >= amount, ENotEnough);
+    //     nft.points = nft.points - amount;
+    //     event::emit(SpentPoints { nft_id, amount });
+    // }
 
     public entry fun burn(
         registry: &mut Registry,
         nft: NFTData,
     ) {
-        assert!(VERSION == 1, EWrongVersion);
+        assert!(VERSION == registry.version, EWrongVersion);
         let NFTData { id, owner, league: _, points: _} = nft;
         let nft_id: ID = object::uid_to_inner(&id);
         table::remove(&mut registry.items, owner);
@@ -314,7 +390,7 @@ module capybara::capybara_game_card {
         nft.points
     }
 
-    public fun league(nft: &NFTData): String {
+    public fun league(nft: &NFTData): u64 {
         nft.league
     }
 
@@ -324,6 +400,12 @@ module capybara::capybara_game_card {
     ) {
         event::emit(UpdateFee { fee: checkin_fee });
         treasury.checkin_fee = checkin_fee
+    }
+
+    public entry fun update_check_sig(
+        registry: &mut Registry, _: &AdminCap, check_signature: bool
+    ) {
+        registry.check_signature = check_signature
     }
 
     public fun is_treasurer<T>(registry: &Registry): bool {
@@ -345,7 +427,7 @@ module capybara::capybara_game_card {
     }
 
     public entry fun update_leagues(
-        registry: &mut Registry, _: &AdminCap, new_leagues: vector<String>
+        registry: &mut Registry, _: &AdminCap, new_leagues: vector<u64>
     ) {
         event::emit(UpdateLeagues { leagues: new_leagues });
         registry.leagues = new_leagues;
@@ -365,6 +447,15 @@ module capybara::capybara_game_card {
         let withdraw_coin: Coin<SUI> = coin::take(&mut treasury.balance, amount, ctx);
         event::emit(WithdrawAmount { amount: amount});
         transfer::public_transfer(withdraw_coin, tx_context::sender(ctx))
+    }
+
+    entry fun migrate(
+        treasury: &mut Treasury,
+        registry: &mut Registry,
+        _: &AdminCap
+    ) {
+        treasury.version = VERSION;
+        registry.version = VERSION;
     }
 
     // === Tests ===

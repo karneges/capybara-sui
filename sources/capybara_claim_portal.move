@@ -1,4 +1,5 @@
 /// Module: capybara
+#[test_only]
 module capybara::capybara_portal {
     use sui::event::{Self};
     use capybara::capybara_game_card::{Self, NFTData};
