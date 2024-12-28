@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "A65C1C6F25FF2B602A958CC1C72F22B68CDB952DA437C721A45E69035D8EE54C"
+manifest_digest = "ADFDB371F710E9E85CE638DE14E4F38EA6B61D948B9E843D7E79A26EE7FD00BE"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "NftProtocol", name = "NftProtocol" },
@@ -57,19 +57,6 @@ dependencies = [
   { id = "Utils", name = "Utils" },
 ]
 
-[env]
-
-[env.mainnet]
-chain-id = "35834a8a"
-original-published-id = "0x9c1e606f08c9f72e11a9d6979ae8ba3ffd81d2e7de55fca68feeec6b5f2d470c"
-latest-published-id = "0x9c1e606f08c9f72e11a9d6979ae8ba3ffd81d2e7de55fca68feeec6b5f2d470c"
-published-version = "1"
-
-
-
-
-
-
 [[move.package]]
 id = "Originmate"
 source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\originmate" }
@@ -86,6 +73,16 @@ dependencies = [
   { id = "Sui", name = "Sui" },
   { id = "Utils", name = "Utils" },
 ]
+
+[env]
+
+[env.mainnet]
+chain-id = "35834a8a"
+original-published-id = "0xe1cdddc2fc6bae4a93174e28c1239af272f54ebdfd094145bac6c6601c590d49"
+latest-published-id = "0xe1cdddc2fc6bae4a93174e28c1239af272f54ebdfd094145bac6c6601c590d49"
+published-version = "1"
+
+
 
 [[move.package]]
 id = "Pseudorandom"

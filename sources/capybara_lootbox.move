@@ -38,6 +38,7 @@ module capybara::capybara_lootbox {
     use ob_request::transfer_request;
     use ob_request::borrow_request::{Self, BorrowRequest, ReturnPromise};
     use ob_kiosk::ob_kiosk;
+    use sui::kiosk::KioskOwnerCap;
 
     /// One-Time-Witness for the module.
     public struct CAPYBARA_LOOTBOX has drop {}
@@ -91,65 +92,7 @@ module capybara::capybara_lootbox {
 
 
     fun init(otw: CAPYBARA_LOOTBOX, ctx: &mut TxContext) {
-        // 1. Init Collection & MintCap with unlimited supply
-        let (mut collection, mint_cap) = collection::create_with_mint_cap<CAPYBARA_LOOTBOX, NFTLootbox>(
-            &otw, option::none(), ctx
-        );
-        // 2. Init Publisher & Delegated Witness
-        let publisher = sui::package::claim(otw, ctx);
-        let dw = witness::from_witness(Witness {});
-
-        // 3. Init Display
-        let tags = vector[tags::art(), tags::collectible()];
-
-        let mut display = display::new<NFTLootbox>(&publisher, ctx);
-        display::add(&mut display, utf8(b"name"), utf8(b"{name}"));
-        display::add(&mut display, utf8(b"tags"), ob_display::from_vec(tags));
-        display::add(&mut display, utf8(b"collection_id"), ob_display::id_to_string(&object::id(&collection)));
-        display::update_version(&mut display);
-        transfer::public_transfer(display, tx_context::sender(ctx));
-
-        // === COLLECTION DOMAINS ===
-
-        // 4. Add Creator metadata to the collection
-
-        // Insert Creator addresses here
-        let creators = vector[
-            @0x0f322f525e7370de05cf773b522c4611b483c94533b61f2da4cb9d4f81d3ff2d
-        ];
-
-        collection::add_domain(
-            dw,
-            &mut collection,
-            creators::new(utils::vec_set_from_vec(&creators)),
-        );
-
-        // 5. Setup royalty basis points
-        // 2_000 BPS == 20%
-        let shares = vector[10_000];
-        let shares = utils::from_vec_to_map(creators, shares);
-
-        royalty_strategy_bps::create_domain_and_add_strategy(
-            dw, &mut collection, royalty::from_shares(shares, ctx), 100, ctx,
-        );
-
-        // === TRANSFER POLICIES ===
-
-        // 6. Creates a new policy and registers an allowlist rule to it.
-        // Therefore now to finish a transfer, the allowlist must be included
-        // in the chain.
-        let (mut transfer_policy,mut transfer_policy_cap) =
-            transfer_request::init_policy<NFTLootbox>(&publisher, ctx);
-
-        royalty_strategy_bps::enforce(&mut transfer_policy, &transfer_policy_cap);
-        transfer_allowlist::enforce(&mut transfer_policy, &transfer_policy_cap);
-
-        // 7. P2P Transfers are a separate transfer workflow and therefore require a
-        // separate policy
-        // let (p2p_policy, p2p_policy_cap) =
-        //     transfer_request::init_policy<NFTLootbox>(&publisher, ctx);
-        //
-        // p2p_list::enforce(&mut p2p_policy, &p2p_policy_cap);
+        let publisher = package::claim(otw, ctx);
 
         /// lootbox display config
         let lootbox_keys = vector[
@@ -187,12 +130,6 @@ module capybara::capybara_lootbox {
         transfer::public_transfer(lootbox_dispaly, owner_address);
 
 
-        transfer::public_transfer(mint_cap, owner_address);
-        transfer::public_transfer(transfer_policy_cap, owner_address);
-        // transfer::public_transfer(p2p_policy_cap, owner_address);
-        transfer::public_share_object(collection);
-        transfer::public_share_object(transfer_policy);
-        // transfer::public_share_object(p2p_policy);
 
 
     }
@@ -225,7 +162,8 @@ module capybara::capybara_lootbox {
         valid_until: u64,
         count: u64,
         signature: vector<u8>,
-        // user_kiosk:&mut sui::kiosk::Kiosk,
+        user_kiosk:&mut sui::kiosk::Kiosk,
+        cap: &KioskOwnerCap,
         ctx: &mut TxContext
     ) {
         let sender: address = tx_context::sender(ctx);
@@ -250,15 +188,7 @@ module capybara::capybara_lootbox {
 
             lootboxes.push_back(object::id(&lootbox));
             lootbox_ids.push_back(lootbox.idx);
-            // if (user_kiosk.is_some()) {
-            //     ob_kiosk::deposit<NFTLootbox>(user_kiosk.borrow(), lootbox, ctx);
-            // } else {
-                let (mut v0,_) = ob_kiosk::new_for_address(sender, ctx);
-                ob_kiosk::deposit<NFTLootbox>(&mut v0, lootbox, ctx);
-                transfer::public_share_object<sui::kiosk::Kiosk>(v0);
-            // };
-            // ob_kiosk::deposit<NFTLootbox>(user_kiosk, lootbox, ctx);
-
+            sui::kiosk::place<capybara::capybara_lootbox::NFTLootbox>(user_kiosk, cap, lootbox);
 
             count = count - 1;
         };
