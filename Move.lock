@@ -2,104 +2,15 @@
 
 [move]
 version = 3
-manifest_digest = "ADFDB371F710E9E85CE638DE14E4F38EA6B61D948B9E843D7E79A26EE7FD00BE"
-deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
+manifest_digest = "72B1CF4945570E3A9FC2FEBF59A61355CA934DBE72E8FAB68F6F364003215484"
+deps_digest = "F8BBB0CCB2491CA29A3DF03D6F92277A4F3574266507ACD77214D37ECA3F3082"
 dependencies = [
-  { id = "NftProtocol", name = "NftProtocol" },
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Allowlist"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\allowlist" }
-
-dependencies = [
-  { id = "Permissions", name = "Permissions" },
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Authlist"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\authlist" }
-
-dependencies = [
-  { id = "Permissions", name = "Permissions" },
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Kiosk"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\kiosk" }
-
-dependencies = [
-  { id = "Permissions", name = "Permissions" },
-  { id = "Request", name = "Request" },
   { id = "Sui", name = "Sui" },
 ]
 
 [[move.package]]
 id = "MoveStdlib"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "framework/testnet", subdir = "crates\\sui-framework\\packages\\move-stdlib" }
-
-[[move.package]]
-id = "NftProtocol"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts/nft_protocol" }
-
-dependencies = [
-  { id = "Allowlist", name = "Allowlist" },
-  { id = "Authlist", name = "Authlist" },
-  { id = "Kiosk", name = "Kiosk" },
-  { id = "Originmate", name = "Originmate" },
-  { id = "Permissions", name = "Permissions" },
-  { id = "Pseudorandom", name = "Pseudorandom" },
-  { id = "Request", name = "Request" },
-  { id = "Sui", name = "Sui" },
-  { id = "Utils", name = "Utils" },
-]
-
-[[move.package]]
-id = "Originmate"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\originmate" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Permissions"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\permissions" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-  { id = "Utils", name = "Utils" },
-]
-
-[env]
-
-[env.mainnet]
-chain-id = "35834a8a"
-original-published-id = "0xe1cdddc2fc6bae4a93174e28c1239af272f54ebdfd094145bac6c6601c590d49"
-latest-published-id = "0xe1cdddc2fc6bae4a93174e28c1239af272f54ebdfd094145bac6c6601c590d49"
-published-version = "1"
-
-
-
-[[move.package]]
-id = "Pseudorandom"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\pseudorandom" }
-
-dependencies = [
-  { id = "Sui", name = "Sui" },
-]
-
-[[move.package]]
-id = "Request"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\request" }
-
-dependencies = [
-  { id = "Permissions", name = "Permissions" },
-  { id = "Sui", name = "Sui" },
-]
 
 [[move.package]]
 id = "Sui"
@@ -109,19 +20,26 @@ dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
 ]
 
-[[move.package]]
-id = "Utils"
-source = { git = "https://github.com/karneges/nft-protocol.git", rev = "1.0.0", subdir = "contracts\\utils" }
-
-dependencies = [
-  { id = "Pseudorandom", name = "Pseudorandom" },
-  { id = "Sui", name = "Sui" },
-]
-
 [move.toolchain-version]
 compiler-version = "1.39.2"
 edition = "2024.beta"
 flavor = "sui"
+
+[env]
+
+[env.mainnet]
+chain-id = "35834a8a"
+original-published-id = "0xddcc7ff9cff08f781bcbdce26c252c14c5aa6d2313a048b95aca2c0c25884ef7"
+latest-published-id = "0xddcc7ff9cff08f781bcbdce26c252c14c5aa6d2313a048b95aca2c0c25884ef7"
+published-version = "1"
+
+
+
+
+
+
+
+
 
 
 

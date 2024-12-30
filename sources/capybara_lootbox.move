@@ -11,6 +11,7 @@ module capybara::capybara_lootbox {
     use sui::coin::Coin;
     use sui::display;
     use sui::ecdsa_k1;
+    use sui::transfer_policy;
     use sui::event;
     use sui::object;
     use sui::object::UID;
@@ -22,22 +23,7 @@ module capybara::capybara_lootbox {
     use sui::transfer;
     use sui::tx_context::TxContext;
 
-    use ob_utils::utils;
-    use nft_protocol::tags;
-    use nft_protocol::mint_event;
-    use nft_protocol::royalty;
-    use nft_protocol::creators;
-    use nft_protocol::transfer_allowlist;
-    use nft_protocol::p2p_list;
-    use ob_utils::display as ob_display;
-    use nft_protocol::collection;
-    use nft_protocol::mint_cap::{Self, MintCap};
-    use nft_protocol::royalty_strategy_bps;
-    use ob_permissions::witness;
 
-    use ob_request::transfer_request;
-    use ob_request::borrow_request::{Self, BorrowRequest, ReturnPromise};
-    use ob_kiosk::ob_kiosk;
     use sui::kiosk::KioskOwnerCap;
 
     /// One-Time-Witness for the module.
@@ -53,6 +39,17 @@ module capybara::capybara_lootbox {
         uid: u64,
         valid_until: u64,
         count: u64,
+    }
+    /// Max value for the `amount_bp`.
+    const MAX_BPS: u16 = 10_000;
+    /// The Rule Witness to authorize the policy
+    public struct Rule has drop {}
+    /// Configuration for the Rule
+    public struct Config has store, drop {
+        /// Percentage of the transfer amount to be paid as royalty fee
+        amount_bp: u16,
+        /// This is used as royalty fee if the calculated fee is smaller than `min_amount`
+        min_amount: u64,
     }
 
     public struct DataStorage has key {
@@ -125,9 +122,13 @@ module capybara::capybara_lootbox {
             pk: x"031d9cd3748b019a247773cae4c6e34abba70ba9fd25f86fff1595b012337d3150",
             check_signature: true,
         };
+        let (mut tp,tp_cap) = transfer_policy::new<NFTLootbox>(&publisher,ctx);
+        transfer_policy::add_rule(Rule {}, &mut tp, &tp_cap, Config { amount_bp: 1000, min_amount: 100_000 });
         transfer::share_object(data_storage);
         transfer::public_transfer(publisher, owner_address);
         transfer::public_transfer(lootbox_dispaly, owner_address);
+        transfer::public_transfer(tp, owner_address);
+        transfer::public_transfer(tp_cap, owner_address);
 
 
 
@@ -189,6 +190,7 @@ module capybara::capybara_lootbox {
             lootboxes.push_back(object::id(&lootbox));
             lootbox_ids.push_back(lootbox.idx);
             sui::kiosk::place<capybara::capybara_lootbox::NFTLootbox>(user_kiosk, cap, lootbox);
+            // transfer::public_transfer(lootbox, sender);
 
             count = count - 1;
         };
